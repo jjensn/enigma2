@@ -1,0 +1,31 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "enigma2", "VAC2 Proof Base.vcproj", "{0371AB06-5C04-4DC3-B299-D63A74262C3C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "acsbypass", "..\acs\svd.vcproj", "{4B3219A2-E6B4-4B04-A889-FD78E524BF24}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Loader", "..\- past sources\OwnaLoader\OwnaLoader\Loader.vcproj", "{436FCE65-1ADC-41CD-B464-083B3ECACB55}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0371AB06-5C04-4DC3-B299-D63A74262C3C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0371AB06-5C04-4DC3-B299-D63A74262C3C}.Debug|Win32.Build.0 = Debug|Win32
+		{0371AB06-5C04-4DC3-B299-D63A74262C3C}.Release|Win32.ActiveCfg = Release|Win32
+		{0371AB06-5C04-4DC3-B299-D63A74262C3C}.Release|Win32.Build.0 = Release|Win32
+		{4B3219A2-E6B4-4B04-A889-FD78E524BF24}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4B3219A2-E6B4-4B04-A889-FD78E524BF24}.Debug|Win32.Build.0 = Debug|Win32
+		{4B3219A2-E6B4-4B04-A889-FD78E524BF24}.Release|Win32.ActiveCfg = Release|Win32
+		{4B3219A2-E6B4-4B04-A889-FD78E524BF24}.Release|Win32.Build.0 = Release|Win32
+		{436FCE65-1ADC-41CD-B464-083B3ECACB55}.Debug|Win32.ActiveCfg = Release|Win32
+		{436FCE65-1ADC-41CD-B464-083B3ECACB55}.Debug|Win32.Build.0 = Release|Win32
+		{436FCE65-1ADC-41CD-B464-083B3ECACB55}.Release|Win32.ActiveCfg = Release|Win32
+		{436FCE65-1ADC-41CD-B464-083B3ECACB55}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

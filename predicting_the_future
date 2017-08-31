@@ -1,0 +1,632 @@
+
+Page 1 of 3	1	2	3	>	
+Show 40 post(s) from this thread on one page
+
+UnKnoWnCheaTs - Multiplayer Game Hacks and Cheats (https://www.unknowncheats.me/forum/index.php)
+-   Counterstrike Global Offensive (https://www.unknowncheats.me/forum/counterstrike-global-offensive/)
+-   -   [Tutorial] Math Behind the Hack #1 - Coding a Better Aimbot - Stop using CalcAngle (https://www.unknowncheats.me/forum/counterstrike-global-offensive/137492-math-hack-1-coding-aimbot-stop-using-calcangle.html)
+
+InvokeStatic	10th February 2015 02:55 AM
+Math Behind the Hack #1 - Coding a Better Aimbot - Stop using CalcAngle
+ 
+Coding a Better Aimbot
+In a new series, Math Behind the Hack
+
+Many of you are familiar with the infamous "CalcAngle" method floating around many sources, tutorials, and boards. I blame the proliferation of this method on Fleep, who distributed this in one of his tutorials. In short, it's pretty bad and has some poor programming practices, most noticeably the magic number of 57.2957... It's also hard to follow what's actually happening. 
+
+Code:
+void CalcAngle( float *src, float *dst, float *angles )
+{
+    double delta[3] = { (src[0]-dst[0]), (src[1]-dst[1]), (src[2]-dst[2]) };
+    double hyp = sqrt(delta[0]*delta[0] + delta[1]*delta[1]);
+    angles[0] = (float) (asinf(delta[2]/hyp) * 57.295779513082f);
+    angles[1] = (float) (atanf(delta[1]/delta[0]) * 57.295779513082f);
+    angles[2] = 0.0f;
+    if(delta[0] >= 0.0) { angles[1] += 180.0f; }
+}
+So instead of copypasting this black-box of a function, I am going to be teaching you a better, fast, and extremely accurate method to essentially calculate the same thing. This will work with both internal or external cheats, but I highly suggest you try making internal, as the Source engine provides some very useful helper methods.
+
+If you don't know what CalcAngle does, it simply takes two 3D positions in src and dst, and outputs the angle to dst in angles. This is primarily used in aimbots, where you pass in the local player's eye position into src, the target's head in dst, and then set the view angles from angles.
+
+SECTION #1: A BIT ON VECTORS
+
+A Vector is an n-th dimensional datatype that stores cartesian coordinate values. At the most basic level, it's a linear line. The most common vectors are 2- and 3-dimensional. A 1-dimensional vector is usually called a scalar and are just real numbers (i.e. no complex numbers). Higher dimensional vectors exist but we cannot represent them on a Cartesian plane as we cannot imagine them in worldspace.
+
+Here is what a 3-dimensional vector (3,7,5) looks like:
+
+http://i.imgur.com/YxFoEO8.png
+
+Vectors can be expressed in multiple ways:
+
+Unit Vector Form : 3i + 7j + 5k
+
+This is often used in mathematics, but utterly useless in computer science. i, j and k are x, y, and z, respectively.
+
+Ordered Set Form : (3, 7, 5)
+
+Just like an ordered pair on a Cartesian graph. Vectors in this tutorial will almost exclusively be in this form.
+
+Polar Form : (9.11, 56.71°)
+
+This is the most interesting form, as this is the vector represented not on a Cartesian plane, but a polar plane. The first term is the magnitude or hypotenuse, and the second term is the angle that the vector forms. We will be essentially converting to this form at the end of this tutorial.
+
+http://i.imgur.com/MJf26NX.png
+
+Because our vector is technically two triangles combined, we can do regular trig on it. Arguably the most important part is to find the magnitude of the vector. As described earlier, the magnitude is the length of the vector. There are two ways to do this. We can either use tan and solve for the XY hypotenuse, and then use tan again and solve for the magnitude. But we can do it faster. You may have learned the 2D Distance formula in an algebra class. This is derived from the Pythagorean theorem, a^2 + b^2 = c^2.
+
+We're going to use the 3D variant of this, which is just like the 2D formula but an extra term for the other dimension.
+
+Code:
+magnitude = sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2)
+Of course, since we're dealing with vectors, the distance will always be from the origin. So, the formula can be simplified further.
+
+Code:
+magnitude = sqrt(x^2 + y^2 + z^2)
+
+Internal users: The Source SDK provides the Vector class that is initialized by Vector(x, y, z) and has a handy function Vector::Length that will calculate the magnitude.
+External users: I suggest you make a struct that contains the x, y, and z coordinates and a function that calculates the magnitude of the vector.
+
+
+That's the basics of vectors! You may need to reference this section of the tutorial later.
+
+SECTION #2: THE PROBLEM
+
+So we want to make an aimbot. Like CalcAngle, we need to figure out the viewangles that will make us aim directly at our enemy.
+
+The first thing we need to do is get our local player's eye position in the world. This is pretty easy. You just need to get the origin vector and add that to the view offset. Then you must find the head position of the enemy.
+
+
+Internal users: remote player head positions can be found by using the IClientEntity::SetupBones function and then using the CStudioHdr class to get the hitbox. There are many resources on the forum on how to do this.
+External users: You will need to iterate the bone struct and find the bone you're looking for. There are multiple threads on this.
+Hint: The head bone ID for players is 10.
+
+
+So what we need to find is the target's head relative to our player, in essence, the vector between us and our target.
+
+http://i.imgur.com/4rDLYUQ.png
+
+We can find this vector pretty easily by subtracting our eye position from the target's head. The resulting vector will be the position of our target relative to our head. Subtracting vectors is very easy. You simply subtract like you would with ordered pairs.
+
+In our example:
+Code:
+  ( 3 , 4.5 , 5 )
+-  ( -2 , -5 , 5 )
+------------------
+  ( 5 , 9.5 , 0 )
+
+Internal users: The SDK provides the helper function VectorSubtract(a, b, c), where the vectors to subtract are a and b, and the resulting vector is c.
+External users: DirectX provides the helper function D3DXVec3Subtract(out, a, b).
+
+
+This is the resulting vector:
+
+http://i.imgur.com/SIb3bsS.png
+
+
+SECTION #3: FUN WITH TRIGONOMETRY
+
+Great! Now we have the vector we want to aim at. Now we just need to calculate the angle needed to aim at this vector.
+
+From this point forward, let's say that the example player's viewangles are at (12°, 30°), which is pitch and yaw, respectively. Let's plot the viewangles on a polar coordinate plane (assume radius = 1).
+
+
+
+http://i.imgur.com/T6Br7ew.png
+
+Now remember pitch is the Y of our vector, and yaw is the X of our vector. As described in the vectors section of this tutorial, the vector forms a right triangle with the magnitude as the hypotenuse. As such, we can use standard trig functions to find the angle.
+
+The magnitude of our example vector is 10.73.
+
+Let's graph the vector on our circles:
+
+http://i.imgur.com/kaWuYB7.png
+
+When you visualize it this way, it's very easy to see the triangle.
+
+We have an X and Y, so we can use arctan, or inverse tangent, to find the yaw.
+We have Z and the hypotenuse, so we can use arccos, or inverse cosine, to find the pitch.
+So this becomes a very easy problem.
+
+
+Code:
+yaw = arctan(y/x) // think sin = opp/hyp, cos = adj/hyp, tan = sin/cos
+Code:
+pitch = arccos(z/hypotenuse)
+Remember: the hypotenuse is the magnitude of a vector.
+
+Internal users: You can use the SDK's VectorAngles(vector, angle) function to easily calculate the pitch and yaw.
+
+
+SECTION #4: SMOOTHING IT UP
+
+If you're looking to make a rage aimbot or whatever, you're pretty much done! However, if you're looking to implement smooth aiming, that's pretty easy to do too. This method I like to call the "nonlinear coefficient" smoothing method.
+
+The first thing we need to do subtract our calculated angles from the player's current viewangles. Like the vector subtraction, this will give us the angle relative to our current viewangles, so you can just add this resulting angle to the current viewangles to have the same effect.
+
+To smooth it up, simply add the result divided by some constant to the viewangles.
+
+For example, to smooth the aim by a factor of 4, you'd use:
+
+Code:
+cmd->viewangles += angleBetween / 4
+I call this nonlinear because the mouse movement becomes nonlinear due to the behavior of this function.
+
+CONCLUSION
+Find the vector of the target relative to the local player.
+Convert that vector into an angle.
+Apply the nonlinear coefficient if you want to smooth it.
+I hope you learned something about math, and I hope it piques your interest to learn more instead of copypasting :) .
+
+Credit: @Chiri - encouraging me to make this tutorial.
+
+KingScabby	10th February 2015 03:06 AM
+Hazah for math!
+
+Great job! +Rep for taking the time to write this :)
+
+Puddin Poppin	10th February 2015 03:12 AM
+cool:monocle: +rep
+
+Merccy	10th February 2015 06:44 AM
+Correct me if I am wrong but there is nothing wrong with the math behind CalcAngle?
+I googled at calculating yaw pitch between 2 vectors and found a stackoverflow article (which is based on a minecraft plugin tutorial) with the same math used as CalcAngle.
+http://stackoverflow.com/questions/1...unknown-points
+The only difference I see is the trigonometry function used to calculate the yaw and pitch.
+
+You are using:
+Code:
+yaw = arctan(deltaY/deltaX) 
+pitch = arccos(deltaZ/hypotenuse)
+and stackoverflow (and I think calcangle as well):
+Code:
+yaw = arctan(deltaZ / deltaX)
+pitch = arctan(hyp / deltaY) + PI
+My conclusion: You made a very good tutorial explaining how CalcAngle works but you produced the same function and when you try to implement your code in c++ you still need the magic number 57.295 because the value produced by atan2(f) is in radians while you want the value to be in degrees.
+
+PS: I don't think there is a speed or accuracy difference between the two (however I do really appreciate the time you put in to writing this tutorial and I am looking forward to more)
+
+supercraft360	10th February 2015 06:51 AM
+Thanks for posting :)
+
+darkshadow232	10th February 2015 07:07 AM
+Quote:
+Originally Posted by Merccy (Post 1146828)
+Correct me if I am wrong but there is nothing wrong with the math behind CalcAngle?
+I googled at calculating yaw pitch between 2 vectors and found a stackoverflow article (which is based on a minecraft plugin tutorial) with the same math used as CalcAngle.
+http://stackoverflow.com/questions/1...unknown-points
+The only difference I see is the trigonometry function used to calculate the yaw and pitch.
+
+You are using:
+Code:
+yaw = arctan(deltaY/deltaX) 
+pitch = arccos(deltaZ/hypotenuse)
+and stackoverflow (and I think calcangle as well):
+Code:
+yaw = arctan(deltaZ / deltaX)
+pitch = arctan(hyp / deltaY) + PI
+My conclusion: You made a very good tutorial explaining how CalcAngle works but you produced the same function and when you try to implement your code in c++ you still need the magic number 57.295 because the value produced by atan2(f) is in radians while you want the value to be in degrees.
+
+PS: I don't think there is a speed or accuracy difference between the two (however I do really appreciate the time you put in to writing this tutorial and I am looking forward to more)
+i thought you convert radians to degree by multiplying 180/pi?
+So for what is this 57.295 ???
+
+kingdeking	10th February 2015 09:33 AM
+57.295779513082f = 180/PI, meant to convert radians to degrees.
+
+are you sure about pitch?
+
+this is str8 from the sdk:
+
+Code:
+void VectorAngles( const float *forward, float *angles )
+{
+        Assert( s_bMathlibInitialized );
+        float        tmp, yaw, pitch;
+        
+        if (forward[1] == 0 && forward[0] == 0)
+        {
+                yaw = 0;
+                if (forward[2] > 0)
+                        pitch = 270;
+                else
+                        pitch = 90;
+        }
+        else
+        {
+                yaw = (atan2(forward[1], forward[0]) * 180 / M_PI);
+                if (yaw < 0)
+                        yaw += 360;
+
+                tmp = sqrt (forward[0]*forward[0] + forward[1]*forward[1]);
+                pitch = (atan2(-forward[2], tmp) * 180 / M_PI);
+                if (pitch < 0)
+                        pitch += 360;
+        }
+        
+        angles[0] = pitch;
+        angles[1] = yaw;
+        angles[2] = 0;
+}
+Imo, you are calculating the wrong angle for pitch. You are calculating the angle between the Hypotenuse and z.
+
+Merccy	10th February 2015 10:19 AM
+Quote:
+Originally Posted by kingdeking (Post 1146875)
+57.295779513082f = 180/PI, meant to convert radians to degrees.
+
+are you sure about pitch?
+
+this is str8 from the sdk:
+
+Code:
+void VectorAngles( const float *forward, float *angles )
+{
+        Assert( s_bMathlibInitialized );
+        float        tmp, yaw, pitch;
+        
+        if (forward[1] == 0 && forward[0] == 0)
+        {
+                yaw = 0;
+                if (forward[2] > 0)
+                        pitch = 270;
+                else
+                        pitch = 90;
+        }
+        else
+        {
+                yaw = (atan2(forward[1], forward[0]) * 180 / M_PI);
+                if (yaw < 0)
+                        yaw += 360;
+
+                tmp = sqrt (forward[0]*forward[0] + forward[1]*forward[1]);
+                pitch = (atan2(-forward[2], tmp) * 180 / M_PI);
+                if (pitch < 0)
+                        pitch += 360;
+        }
+        
+        angles[0] = pitch;
+        angles[1] = yaw;
+        angles[2] = 0;
+}
+Imo, you are calculating the wrong angle for pitch. You are calculating the angle between the Hypotenuse and z.
+does not matter
+
+kingdeking	10th February 2015 10:19 AM
+btw the error in the formula of your 1st post is that the hypotenuse calculation is missing delta[3] aka the z component.
+@Merccy what ya mean by does not matter?
+
+InvokeStatic	10th February 2015 10:36 AM
+Quote:
+Originally Posted by Merccy (Post 1146828)
+Correct me if I am wrong but there is nothing wrong with the math behind CalcAngle?
+I googled at calculating yaw pitch between 2 vectors and found a stackoverflow article (which is based on a minecraft plugin tutorial) with the same math used as CalcAngle.
+http://stackoverflow.com/questions/1...unknown-points
+The only difference I see is the trigonometry function used to calculate the yaw and pitch.
+
+You are using:
+Code:
+yaw = arctan(deltaY/deltaX) 
+pitch = arccos(deltaZ/hypotenuse)
+and stackoverflow (and I think calcangle as well):
+Code:
+yaw = arctan(deltaZ / deltaX)
+pitch = arctan(hyp / deltaY) + PI
+My conclusion: You made a very good tutorial explaining how CalcAngle works but you produced the same function and when you try to implement your code in c++ you still need the magic number 57.295 because the value produced by atan2(f) is in radians while you want the value to be in degrees.
+
+PS: I don't think there is a speed or accuracy difference between the two (however I do really appreciate the time you put in to writing this tutorial and I am looking forward to more)
+The principle of this tutorial is not really to provide copypasta, but to actually teach the math concepts behind them.
+
+The magic number is indeed radians or degrees, but you'd never know this, because this is a magic number.
+
+I'll check my trig real quick, but I'm pretty sure it's right (did a couple problems on pen and paper).
+
+n3rHACK	10th February 2015 10:46 AM
++rep :)
+
+Merccy	10th February 2015 10:58 AM
+Quote:
+Originally Posted by kingdeking (Post 1146890)
+btw the error in the formula of your 1st post is that the hypotenuse calculation is missing delta[3] aka the z component.
+@Merccy what ya mean by does not matter?
+Arccos of dz/hyp == arctan of dy/dz (im not 100% sure if it is dy/dz or dx/dz) == arcsin of (dy or dx)/dz
+@InvokeStatic your title is stop using calcangle when you are actuele just explaining the function (with I really appreciate).
+
+LeGiOn	10th February 2015 11:01 AM
+Awesome contribution ! 
++Rep
+
+elixre	10th February 2015 11:15 AM
+Awesome thread man. +rep
+
+kingdeking	10th February 2015 11:24 AM
+Quote:
+Originally Posted by Merccy (Post 1146908)
+Arccos of dz/hyp == arctan of dy/dz (im not 100% sure if it is dy/dz or dx/dz) == arcsin of (dy or dx)/dz
+@InvokeStatic your title is stop using calcangle when you are actuele just explaining the function (with I really appreciate).
+the last equation is wrong if Im not mistaken. Dont really see the point of your equation chain.
+
+You are supposed to proof that:
+
+atan(z / sqrt(x^2 + y^2) ) = arccos(z / sqrt(x^2+y^2+z^2) )
+
+which is obviously not true for the example vector = (1,2,3)
+
+we get:
+atan(z / sqrt(x^2 + y^2) ) = 0.93
+arccos(z / sqrt(x^2+y^2+z^2) ) = 0.64
+
+Therefore the pitch calculation is wrong and you are wrong too.
+
+Merccy	10th February 2015 12:15 PM
+Quote:
+Originally Posted by kingdeking (Post 1146929)
+the last equation is wrong if Im not mistaken. Dont really see the point of your equation chain.
+
+You are supposed to proof that:
+
+atan(z / sqrt(x^2 + y^2) ) = arccos(z / sqrt(x^2+y^2+z^2) )
+
+which is obviously not true for the example vector = (1,2,3)
+
+we get:
+atan(z / sqrt(x^2 + y^2) ) = 0.93
+arccos(z / sqrt(x^2+y^2+z^2) ) = 0.64
+
+Therefore the pitch calculation is wrong and you are wrong too.
+I also changed the parameters which you did not. The parameters are probably incorrect because but this is what I meant to show.
+
+http://i.gyazo.com/9da577c6a2429acd68ff3cd5e663a737.png
+then
+alpha = asin(o / s);
+alpha = acos(a / s);
+alpha = atan(o / a);
+
+bobbyjob123	10th February 2015 01:02 PM
+Nice tut. But this is exactly calc angle function literally but with explanation
+
+You should add angle normalisation
+
+Array is similar to vector
+
+sppy	10th February 2015 01:16 PM
+Code:
+AngleX = ((asin((Bone.z - LocalOrigin.z) / Distance) * 180 / 3.14159265358979323846) * -1);
+AngleY = (ATAN2(Bone.x - LocalOrigin.x, Bone.y - LocalOrigin.y) / 3.14159265358979323846 * 180);
+
+Chiri	10th February 2015 02:15 PM
+Quote:
+Originally Posted by InvokeStatic (Post 1146758)
+Credit: @Chiri - encouraging me to make this tutorial.
+Now i'm famous! Seriously though, I told you this would make a great thread of itself, great tutorial and I'm almost sad I can't +rep you again already! Will definitely start referring to this thread whenever someone asks about how to calculate angles.
+
+clockwork235	10th February 2015 04:25 PM
+Very helpful for an aimbot-noob like me. I hope you post more. +rep
+
+
+All times are GMT. The time now is 08:43 PM.	
+Page 1 of 3	1	2	3	>	
+Show 40 post(s) from this thread on one page
+
+
+
+UnKnoWnCheaTs - Multiplayer Game Hacks and Cheats (https://www.unknowncheats.me/forum/index.php)
+-   General Programming and Reversing (https://www.unknowncheats.me/forum/general-programming-and-reversing/)
+-   -   [Tutorial] Math Behind the Hack #2 - Predicting the Future - 3D Kinematics (https://www.unknowncheats.me/forum/general-programming-and-reversing/173986-math-hack-2-predicting-future-3d-kinematics.html)
+
+InvokeStatic	8th April 2016 07:33 PM
+Math Behind the Hack #2 - Predicting the Future - 3D Kinematics
+ 
+Predicting the Future
+Part 2 of the series Math Behind the Hack (Part 1)
+
+Sometimes it's usefull to know where an player, entity, or thing will be, sometime in the future, whether that be 1 tick in the future or 1 second in the future. If your game has non-hitscan weapons, like rocket launchers or sniper rifles, then you could use these techniques to figure out exactly where you need to aim for the projectile to hit your target.
+
+http://puu.sh/oaU9k/31d5425987.jpg
+
+Where should I fire this launcher to hit the moving target? Well, after reading this tutorial, you'll know & be able to implement it into your cheats!
+
+
+SECTION #1: VECTOR BRUSH-UP
+
+If you haven't read part 1 of Math Behind the Hack, you should do so now so you can get a feeling for what a vector is.
+
+Suppose we have a vector defined as (2, 3, 6) or (2i + 3j + 6k).
+
+http://puu.sh/oaUuv/59597faf61.png
+
+Since, by definition, any vector has a magnitude and a direction, we can resolve this vector into a magnitude and a direction. For the purposes of this tutorial, we don't really care about the direction. But we do care about the magnitude. The magnitude of a vector is a scalar, which means it's just a number. Once again, the formula for the magnitude, or length, of a vector is:
+
+http://puu.sh/oaUU0/7a29e96f45.png
+
+For our vector, this would equal 7. If we took the vector we made and laid it on a number line, it would look like this:
+
+http://puu.sh/oaUKx/995666ef1f.png
+
+MULTIPLYING A VECTOR BY A SCALAR
+
+Multiplying a vector by a scalar is pretty simple. We just multiply every component in the vector by the multiplicand. So if we wanted to multiply our vector by 1.5, we would do (2 * 1.5, 3 * 1.5, 6 * 1.5), which gives us a resultant vector of (3, 4.5, 9).
+
+http://puu.sh/oaVot/19f26189b3.png
+
+The magnitude, or length, of the resultant vector is 10.5. You'll notice that this is the magnitude of our initial vector, multiplied by 1.5. Neat!
+
+SECTION #2: 3D KINEMATICS
+
+So now that we have a good handle on vectors and scalars, let's jump into kinematics, a fundamental physics concept.
+
+POSITION or DISPLACEMENT
+
+Position or Displacement is a vector that represents the location of something relative to a known origin. In many video games, the origin is completely arbitrary, and is a random spot on the map. If you have ESP or an aimbot in your cheat, congratulations! That means you're already using position or displacement to either a) determine where to draw the ESP boxes on your screen, or b) determine where to aim at in the aimbot. I like using Δx to represent displacement.
+
+Technically speaking, displacement is the total accumulation of velocity over a time interval, meaning the starting displacement is always zero. Position, however, is displacement plus an arbitrary constant (like a spawn point).
+
+Show Spoiler!
+
+
+VELOCITY
+
+Velocity is a vector that represents the rate at which displacement changes. It can be thought of as a speed, but be careful, as speed is a scalar and not a vector (so it has no directional information). Average velocity can be calculated with:
+
+http://puu.sh/oaW7L/d28d9caa69.png
+
+Since we're trying to predict the future, we have to rely on the game to give us an accurate instantaneous velocity. For that reason, you will probably not have to use this formula in this tutorial.
+
+The units for velocity is the unit of displacement over the unit of time.
+
+Show Spoiler!
+
+
+ACCELERATION
+
+Acceleration is also a vector that represents the rate at which velocity changes. For example, on Earth, the acceleration of gravity is about -9.8 meters per second, squared. The formula for average acceleration is:
+
+http://puu.sh/oaWrm/f9aa41f13e.png
+
+For the purposes of this tutorial, we will always assume that acceleration is a constant. You will need to determine the constant of gravity for your game. For Source Engine games, the vector for acceleration will likely be (0, -800, 0).
+
+Show Spoiler!
+
+
+
+SECTION #3: THE PROBLEM
+
+Suppose we have a rocket launcher that fires a projectile at 20 meters/second in a straight line with no acceleration. Our rocket launcher is at the position (100, 20, 50). We want to hit an enemy who has an initial position of (200, 100, 50), an initial velocity of (-20, 0, 0), and a constant acceleration of (0, -10, 0). Where should we aim our rocket launcher so that it hits the enemy as he is falling down?
+
+To start, let's try to model a function that gives us the position of the enemy from any given time. As it turns out, there is a kinematic equation that fits our requirements.
+
+http://puu.sh/oaYbB/6d6db6981d.png
+
+In this function, p0 is the initial position, v0 is the initial velocity, and a is the average acceleration. When we input our given variables, we end up with
+
+http://puu.sh/oaYjm/78ffb3bffc.png
+
+We can turn this mathematics function into a C++ function pretty easily.
+Code:
+Vector calculatePosition(double time, Vector startPosition, Vector velocity, Vector accel = 0) {
+    return startPosition + (velocity * time) + (0.5 * accel * pow(time, 2));
+}
+This is great! But there is something subtle missing. We don't have the time, which happens to be the most important piece of this problem. So let's take a step back for a moment and switch back to the rocket launcher.
+
+Since the rocket launcher has no acceleration, we can borrow the kinematic equation above and simply cross out the last term that has acceleration in it. This leaves us with the function
+
+http://puu.sh/oaYNd/f74df9f206.png
+
+When we plug in p0 and v0 with the rocket launcher's parameters, we are left with
+
+http://puu.sh/oaYW6/fdb37328b1.png
+
+So we can use the calculatePosition function above to calculate the position of our projectile and the enemy at any given time. And we can use this information to solve for their intersection time, which we can use to finally solve this problem.
+
+SECTION #4: STEPPING THROUGH TIME
+
+In this problem, we're really looking for when the projectile and enemy intersect with one another. In other words, we want to find the time in which the projectile's position and the enemy's position are equal. So let's set the two kinematic equations equal to each other.
+
+http://puu.sh/oaZSX/7aee23d448.png
+
+Because time is not a vector and is a scalar, we no longer have to use vectors in this equation. We can just input the magnitudes of the vectors instead.
+http://puu.sh/ob0lv/8898767d59.png
+
+The only thing we have to do now is solve for t. It would be quite a chore to do this algebra by hand, so I put it into WolframAlpha.
+
+http://puu.sh/ob0SQ/7fd61e9ab1.png
+
+
+And if we plug in our values, we end up with 4.81 seconds - just what we need to solve the problem!
+
+
+I've gone ahead and put this into a C++ function for you.
+
+
+
+Code:
+    double asymetricSingleAcceleratedInterceptionTime(Vector position1, Vector position2, Vector velocity1, Vector velocity2, Vector acceleration2) {
+        /*
+        sqrt( (2 * a2 * x1) + (2 * a2 * x2) + v1^2 - (2 * v1 * v2) + v2^2 ) - v1 + v2
+        t = ------------------------------------------------------------------------------
+        a2
+        */
+
+        if (acceleration2.x == 0 && acceleration2.y == 0 && acceleration2.z == 0) {
+            return asymetricInterceptionTime(position1, position2, velocity1, velocity2);
+        }
+
+        return (sqrt(
+            (2 * acceleration2 * position1).Length()
+            + (2 * acceleration2 * position2).Length()
+            + pow(velocity1.Length(), 2)
+            - (2 * velocity1 * velocity2).Length()
+            + pow(velocity2.Length(), 2))
+            - velocity1.Length()
+            + velocity2.Length()
+            ) / (acceleration2).Length();
+    }
+ CHECK TO MAKE SURE YOU HAVE A NON-ZERO ACCELERATION BEFORE USING asymetricSingleAcceleratedInterceptionTime OR asymetricAcceleratedInterceptionTime
+
+IF BOTH SIDES HAVE 0 ACCELERATION use this function instead
+Code:
+    double asymetricInterceptionTime(Vector position1, Vector position2, Vector velocity1, Vector velocity2) {
+        Vector dX = position2 - position1;
+        Vector dV = velocity1 - velocity2;
+        return (dX / dV).Length();
+    }
+
+IF BOTH SIDES HAVE AN ACCELERATION use this function instead
+Code:
+double asymetricAcceleratedInterceptionTime(Vector position1, Vector position2, Vector velocity1, Vector velocity2, Vector acceleration1, Vector acceleration2) {
+        /*
+        sqrt( (-2 * a1 * x1) + (2 * a1 * x2) + (2 * a2 * x1) - (2 * a2 * x2) + v1^2 - (2 * v1 * v2) + v2^2 ) - v1 + v2
+        t = ----------------------------------------------------------------------------------------------------------------
+        a1 - a2
+        */
+        Vector nullvec(0, 0, 0);
+
+        if (acceleration2 == nullvec && acceleration1 != nullvec) {
+            return asymetricSingleAcceleratedInterceptionTime(position1, position2, velocity1, velocity2, acceleration1);
+        }
+        else if (acceleration2 != nullvec && acceleration1 == nullvec) {
+            return asymetricSingleAcceleratedInterceptionTime(position1, position2, velocity1, velocity2, acceleration2);
+        }
+
+        return (sqrt(
+            -(2 * acceleration1 * position1).Length()
+            + (2 * acceleration1 * position2).Length()
+            + (2 * acceleration2 * position1).Length()
+            - (2 * acceleration2 * position2).Length()
+            + pow(velocity1.Length(), 2)
+            - (2 * velocity1 * velocity2).Length()
+            + pow(velocity2.Length(), 2))
+            - velocity1.Length()
+            + velocity2.Length()
+            ) / (acceleration1 - acceleration2).Length();
+    }
+
+
+
+
+SECTION #5: PUTTING IT TOGETHER
+
+Now that we have the interception time, we can plug in that value to the calculatePosition function in Section #3. This will give us a position vector of the spot we need to aim at. You can use Math Behind the Hack #1 to figure out how to aim at this spot once you have the position.
+
+Enjoy, and happy airshots ;)
+
+Snorflake	9th April 2016 10:05 AM
+What function would you use if you have no acceleration but the target has acceleration?
+
+EDIT: If we wanted to read more on this, what search terms would we google? I only found stuff on traffic :p
+
+synthfx	9th April 2016 10:07 AM
+well explained. haven't thought that this is so easy.
+
+stevemk14ebr	9th April 2016 01:48 PM
+Quote:
+Originally Posted by Snorflake (Post 1437299)
+What function would you use if you have no acceleration but the target has acceleration?
+
+EDIT: If we wanted to read more on this, what search terms would we google? I only found stuff on traffic :p
+The term for this stuff is kinematics. Just add the acceleration of the target to yourself, it will have the same effect.
+
+Lak3	9th April 2016 04:30 PM
+thanks very much for this, definedly +repped, now i might be able to hit heavies with my projectile prediction <3
+
+
+All times are GMT. The time now is 08:42 PM.	

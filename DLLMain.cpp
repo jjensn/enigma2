@@ -99,7 +99,7 @@ DWORD dwThread( LPVOID lpArgs )
 	gFlagStatus.Pre_HUD_Init();
 
 	econsoleprint("enigma2",false);
-	econsoleprint("dajuda!",false);
+	econsoleprint("dddd!",false);
 	econsoleprint("< - - - - - - - -",false);
 	econsoleprint("released under gpl -- if you did not",false);
 	econsoleprint("receive a copy of the source code with this",false);

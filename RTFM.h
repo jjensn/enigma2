@@ -1,7 +1,7 @@
 /*  ------------------------------------------------------------------------
 	  RTFM.h
 		- by Mulchman
-		- rewriten by dajuda` for giggles tee-hee.
+		- rewriten by dd` for giggles tee-hee.
 	------------------------------------------------------------------------ */
 
 #ifndef RTFM_H
